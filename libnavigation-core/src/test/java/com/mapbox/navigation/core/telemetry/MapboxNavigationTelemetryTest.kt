@@ -652,7 +652,7 @@ class MapboxNavigationTelemetryTest {
     }
 
     private fun postUserFeedback() {
-        MapboxNavigationTelemetry.postUserFeedback("", "", "", null, null, null)
+        MapboxNavigationTelemetry.postUserFeedback("", "", "", null, emptyArray(), null)
     }
 
     /**

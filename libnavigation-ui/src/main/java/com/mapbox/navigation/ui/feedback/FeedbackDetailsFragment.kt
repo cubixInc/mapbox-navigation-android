@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -21,24 +20,16 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback
 import com.google.android.material.bottomsheet.BottomSheetBehavior.from
+import com.mapbox.navigation.core.telemetry.events.CachedNavigationFeedbackEvent
 import com.mapbox.navigation.core.telemetry.events.FeedbackEvent
 import com.mapbox.navigation.core.telemetry.events.FeedbackEvent.POSITIONING_ISSUE
 import com.mapbox.navigation.ui.R
 import com.mapbox.navigation.ui.internal.utils.ViewUtils
-import kotlinx.android.synthetic.main.mapbox_edit_text_feedback_optional_comment.feedbackCommentEditText
-import kotlinx.android.synthetic.main.mapbox_feedback_details_bottom_sheet.addMoreFeedbackCommentsTextView
-import kotlinx.android.synthetic.main.mapbox_feedback_details_bottom_sheet.feedbackDetailsBottomSheet
-import kotlinx.android.synthetic.main.mapbox_feedback_details_bottom_sheet.feedbackDetailsBottomSheetLayout
-import kotlinx.android.synthetic.main.mapbox_feedback_details_bottom_sheet.feedbackOptionalCommentLayout
-import kotlinx.android.synthetic.main.mapbox_feedback_details_bottom_sheet.feedbackSubTypes
-import kotlinx.android.synthetic.main.mapbox_feedback_details_bottom_sheet.provideFeedbackDetailTextView
-import kotlinx.android.synthetic.main.mapbox_feedback_details_fragment.screenshotView
-import kotlinx.android.synthetic.main.mapbox_partial_feedback_bottom_sheet_top_banner.cancelBtn
-import kotlinx.android.synthetic.main.mapbox_partial_feedback_bottom_sheet_top_banner.feedbackBottomSheetTitleText
-import kotlinx.android.synthetic.main.mapbox_partial_feedback_bottom_sheet_top_banner.feedbackCategoryImage
-import kotlinx.android.synthetic.main.mapbox_partial_feedback_details_button_bar.feedbackDetailsFlowBackButton
-import kotlinx.android.synthetic.main.mapbox_partial_feedback_details_button_bar.feedbackDetailsFlowNextButton
-import kotlinx.android.synthetic.main.mapbox_partial_feedback_details_button_bar.feedbackDetailsFlowStartButton
+import kotlinx.android.synthetic.main.mapbox_edit_text_feedback_optional_comment.*
+import kotlinx.android.synthetic.main.mapbox_feedback_details_bottom_sheet.*
+import kotlinx.android.synthetic.main.mapbox_feedback_details_fragment.*
+import kotlinx.android.synthetic.main.mapbox_partial_feedback_bottom_sheet_top_banner.*
+import kotlinx.android.synthetic.main.mapbox_partial_feedback_details_button_bar.*
 import timber.log.Timber
 
 /**
@@ -48,20 +39,25 @@ import timber.log.Timber
 class FeedbackDetailsFragment : DialogFragment() {
 
     private val feedbackSubTypeMap by lazy { buildFeedbackSubTypeMap() }
-    private var feedbackItem: FeedbackItem? = null
+    private var feedbackItem: CachedNavigationFeedbackEvent? = null
         set(value) {
             field = value
             value?.let {
-                screenshotView.setImageBitmap(ViewUtils.decodeScreenshot(it.encodedScreenshot))
-                feedbackBottomSheetTitleText.text = buildTitleText(it.feedbackText.replace("\n", " "), currentFeedbackIndex, itemsToProvideMoreDetailsOn.size)
+                screenshotView.setImageBitmap(ViewUtils.decodeScreenshot(it.screenshot))
+                feedbackBottomSheetTitleText.text = buildTitleText(
+                    FeedbackHelper.getFeedbackText(it.feedbackType, requireContext())
+                        .replace("\n", " "),
+                    currentFeedbackIndex,
+                    itemsToProvideMoreDetailsOn.size
+                )
                 /**
                  * TODO: Show something else if it.feedbackType == positioning_issue and/or
-                 *  feedbackSubTypeMap[it.feedbackType] = null ?
+                 *  feedbackSubTypeMap"it.feedbackType" = null ?
                  */
                 feedbackSubTypeAdapter.submitList(feedbackSubTypeMap[it.feedbackType])
                 feedbackCommentEditText.setText(it.description)
-                feedbackOptionalCommentLayout.visibility = if (it.description.isEmpty()) GONE else VISIBLE
-                feedbackCategoryImage.setImageDrawable(AppCompatResources.getDrawable(context!!, it.feedbackImageId))
+                feedbackOptionalCommentLayout.visibility = if (it.description?.isEmpty() == true) GONE else VISIBLE
+                feedbackCategoryImage.setImageDrawable(AppCompatResources.getDrawable(context!!, FeedbackHelper.getFeedbackImage(it.feedbackType)))
                 feedbackCategoryImage.visibility = VISIBLE
             }
         }
@@ -69,8 +65,8 @@ class FeedbackDetailsFragment : DialogFragment() {
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
     private var feedbackFlowListener: FeedbackFlowListener? = null
     private var arrivalExperienceFeedbackEnabled: Boolean = false
-    private val itemsToProvideMoreDetailsOn = ArrayList<FeedbackItem>()
-    private val itemsThatDontNeedDetailedFeedback = ArrayList<FeedbackItem>()
+    private val itemsToProvideMoreDetailsOn = ArrayList<CachedNavigationFeedbackEvent>()
+    private val itemsThatDontNeedDetailedFeedback = ArrayList<CachedNavigationFeedbackEvent>()
     private var currentFeedbackIndex = -1
         set(value) {
             field = value
@@ -139,7 +135,9 @@ class FeedbackDetailsFragment : DialogFragment() {
         feedbackDetailsFlowNextButton.setOnClickListener {
             saveComment()
             if (currentFeedbackIndex == itemsToProvideMoreDetailsOn.size - 1) {
-                feedbackFlowListener?.onDetailedFeedbackFlowFinished()
+                feedbackFlowListener?.onDetailedFeedbackFlowFinished(
+                    itemsToProvideMoreDetailsOn.plus(itemsThatDontNeedDetailedFeedback)
+                )
                 if (arrivalExperienceFeedbackEnabled) {
                     goToArrivalExperienceFragment()
                 }
@@ -161,11 +159,9 @@ class FeedbackDetailsFragment : DialogFragment() {
     }
 
     private fun goToArrivalExperienceFragment() {
-        val fragmentActivityContext = context as FragmentActivity
-        fragmentActivityContext.supportFragmentManager
-            .beginTransaction()
+        parentFragmentManager.beginTransaction()
             .add(R.id.navigationLayout, FeedbackArrivalFragment.newInstance(
-                feedbackFlowListener, itemsToProvideMoreDetailsOn.plus(itemsThatDontNeedDetailedFeedback)), FeedbackArrivalFragment::class.java.simpleName).commit()
+                feedbackFlowListener), FeedbackArrivalFragment::class.java.simpleName).commit()
     }
 
     private fun initRecyclerView() {
@@ -334,24 +330,20 @@ class FeedbackDetailsFragment : DialogFragment() {
     }
 
     companion object {
-        fun newInstance(enableArrivalExperienceFeedback: Boolean, feedbackFlowListener: FeedbackFlowListener?, feedbackItemList: List<FeedbackItem>?): FeedbackDetailsFragment =
+        fun newInstance(
+            feedbackItemList: List<CachedNavigationFeedbackEvent>,
+            feedbackFlowListener: FeedbackFlowListener? = null,
+            enableArrivalExperienceFeedback: Boolean = true
+        ) =
             FeedbackDetailsFragment().apply {
                 this.arrivalExperienceFeedbackEnabled = enableArrivalExperienceFeedback
                 this.feedbackFlowListener = feedbackFlowListener
-                feedbackItemList?.let {
-                    val itemsThatNeedMoreDetail = it.filter { singleItem ->
-                        !singleItem.feedbackType.contentEquals(POSITIONING_ISSUE)
-                    }
-                    itemsToProvideMoreDetailsOn.addAll(itemsThatNeedMoreDetail)
-
-                    val itemsThatDoNotNeedDetail = it.filter { singleItem ->
-                        singleItem.feedbackType.contentEquals(POSITIONING_ISSUE)
-                    }
-                    itemsThatDontNeedDetailedFeedback.addAll(itemsThatDoNotNeedDetail)
+                feedbackItemList.partition {
+                    it.feedbackType == POSITIONING_ISSUE
+                }.run {
+                    itemsThatDontNeedDetailedFeedback.addAll(first)
+                    itemsToProvideMoreDetailsOn.addAll(second)
                 }
             }
-
-        fun newInstance(feedbackFlowListener: FeedbackFlowListener?, feedbackItemList: List<FeedbackItem>?): FeedbackDetailsFragment =
-            newInstance(false, feedbackFlowListener, feedbackItemList)
     }
 }

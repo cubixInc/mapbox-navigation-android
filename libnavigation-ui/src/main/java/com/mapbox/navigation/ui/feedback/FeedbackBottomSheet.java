@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * A BottomSheetDialogFragment shows Feedback UI with different feedback categories.
@@ -319,30 +320,60 @@ public class FeedbackBottomSheet extends BottomSheetDialogFragment implements An
   private List<FeedbackItem> buildFeedbackCategoryList() {
     List<FeedbackItem> list = new ArrayList<>();
 
-    list.add(new FeedbackItem(getResources().getString(R.string.mapbox_feedback_type_looks_incorrect),
-      R.drawable.mapbox_ic_feedback_looks_incorrect,
-      FeedbackEvent.INCORRECT_VISUAL_GUIDANCE,
-      EMPTY_FEEDBACK_DESCRIPTION));
-    list.add(new FeedbackItem(getResources().getString(R.string.mapbox_feedback_type_confusing_audio),
-      R.drawable.mapbox_ic_feedback_confusing_audio,
-      FeedbackEvent.INCORRECT_AUDIO_GUIDANCE,
-      EMPTY_FEEDBACK_DESCRIPTION));
-    list.add(new FeedbackItem(getResources().getString(R.string.mapbox_feedback_type_positioning_issue),
-        R.drawable.mapbox_ic_feedback_positioning_issue,
-        FeedbackEvent.POSITIONING_ISSUE,
-        EMPTY_FEEDBACK_DESCRIPTION));
-    list.add(new FeedbackItem(getResources().getString(R.string.mapbox_feedback_type_route_quality),
-        R.drawable.mapbox_ic_feedback_route_quality,
-        FeedbackEvent.ROUTING_ERROR,
-        EMPTY_FEEDBACK_DESCRIPTION));
-    list.add(new FeedbackItem(getResources().getString(R.string.mapbox_feedback_type_illegal_route),
-        R.drawable.mapbox_ic_feedback_illegal_route,
-        FeedbackEvent.NOT_ALLOWED,
-        EMPTY_FEEDBACK_DESCRIPTION));
-    list.add(new FeedbackItem(getResources().getString(R.string.mapbox_feedback_type_road_closure),
-        R.drawable.mapbox_ic_feedback_road_closure,
-        FeedbackEvent.ROAD_CLOSED,
-        EMPTY_FEEDBACK_DESCRIPTION));
+    list.add(new FeedbackItem(
+            FeedbackHelper.INSTANCE.getFeedbackText(
+                    FeedbackEvent.INCORRECT_VISUAL_GUIDANCE,
+                    Objects.requireNonNull(getContext())
+            ),
+            FeedbackHelper.INSTANCE.getFeedbackImage(FeedbackEvent.INCORRECT_VISUAL_GUIDANCE),
+            FeedbackEvent.INCORRECT_VISUAL_GUIDANCE,
+            EMPTY_FEEDBACK_DESCRIPTION)
+    );
+    list.add(new FeedbackItem(
+            FeedbackHelper.INSTANCE.getFeedbackText(
+                    FeedbackEvent.INCORRECT_AUDIO_GUIDANCE,
+                    Objects.requireNonNull(getContext())
+            ),
+            FeedbackHelper.INSTANCE.getFeedbackImage(FeedbackEvent.INCORRECT_AUDIO_GUIDANCE),
+            FeedbackEvent.INCORRECT_AUDIO_GUIDANCE,
+            EMPTY_FEEDBACK_DESCRIPTION)
+    );
+    list.add(new FeedbackItem(
+            FeedbackHelper.INSTANCE.getFeedbackText(
+                    FeedbackEvent.POSITIONING_ISSUE,
+                    Objects.requireNonNull(getContext())
+            ),
+            FeedbackHelper.INSTANCE.getFeedbackImage(FeedbackEvent.POSITIONING_ISSUE),
+            FeedbackEvent.POSITIONING_ISSUE,
+            EMPTY_FEEDBACK_DESCRIPTION)
+    );
+    list.add(new FeedbackItem(
+            FeedbackHelper.INSTANCE.getFeedbackText(
+                    FeedbackEvent.ROUTING_ERROR,
+                    Objects.requireNonNull(getContext())
+            ),
+            FeedbackHelper.INSTANCE.getFeedbackImage(FeedbackEvent.ROUTING_ERROR),
+            FeedbackEvent.ROUTING_ERROR,
+            EMPTY_FEEDBACK_DESCRIPTION)
+    );
+    list.add(new FeedbackItem(
+            FeedbackHelper.INSTANCE.getFeedbackText(
+                    FeedbackEvent.NOT_ALLOWED,
+                    Objects.requireNonNull(getContext())
+            ),
+            FeedbackHelper.INSTANCE.getFeedbackImage(FeedbackEvent.NOT_ALLOWED),
+            FeedbackEvent.NOT_ALLOWED,
+            EMPTY_FEEDBACK_DESCRIPTION)
+    );
+    list.add(new FeedbackItem(
+            FeedbackHelper.INSTANCE.getFeedbackText(
+                    FeedbackEvent.ROAD_CLOSED,
+                    Objects.requireNonNull(getContext())
+            ),
+            FeedbackHelper.INSTANCE.getFeedbackImage(FeedbackEvent.ROAD_CLOSED),
+            FeedbackEvent.ROAD_CLOSED,
+            EMPTY_FEEDBACK_DESCRIPTION)
+    );
 
     return list;
   }

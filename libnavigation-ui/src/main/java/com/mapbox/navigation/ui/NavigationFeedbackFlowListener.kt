@@ -1,5 +1,6 @@
 package com.mapbox.navigation.ui
 
+import com.mapbox.navigation.core.telemetry.events.CachedNavigationFeedbackEvent
 import com.mapbox.navigation.ui.feedback.FeedbackFlowListener
 import com.mapbox.navigation.ui.feedback.FeedbackItem
 
@@ -10,12 +11,17 @@ internal class NavigationFeedbackFlowListener(
     private val navigationViewModel: NavigationViewModel
 ) : FeedbackFlowListener {
 
-    override fun onDetailedFeedbackFlowFinished() {
-        navigationViewModel.cachedFeedbackItems?.let { itemList ->
-            if (itemList.isNotEmpty()) {
-                navigationViewModel.sendCachedFeedback()
-            }
+    override fun onDetailedFeedbackFlowFinished(
+        cachedFeedbackEventList: List<CachedNavigationFeedbackEvent>
+    ) {
+        navigationViewModel.retrieveNavigation()?.run {
+            postCachedUserFeedback(cachedFeedbackEventList)
         }
+//        navigationViewModel.cachedFeedbackItems?.let { itemList ->
+//            if (itemList.isNotEmpty()) {
+//                navigationViewModel.sendCachedFeedback()
+//            }
+//        }
     }
 
     override fun onArrivalExperienceFeedbackFinished(arrivalFeedbackItem: FeedbackItem) {

@@ -5,13 +5,11 @@ package com.mapbox.navigation.examples.core
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.view.View.GONE
 import android.view.View.VISIBLE
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.fragment.app.FragmentActivity
 import androidx.preference.PreferenceManager
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.snackbar.Snackbar.LENGTH_SHORT
@@ -49,6 +47,7 @@ import com.mapbox.navigation.core.directions.session.RoutesRequestCallback
 import com.mapbox.navigation.core.replay.MapboxReplayer
 import com.mapbox.navigation.core.replay.ReplayLocationEngine
 import com.mapbox.navigation.core.replay.route.ReplayProgressObserver
+import com.mapbox.navigation.core.telemetry.events.CachedNavigationFeedbackEvent
 import com.mapbox.navigation.core.telemetry.events.FeedbackEvent.UI
 import com.mapbox.navigation.core.trip.session.BannerInstructionsObserver
 import com.mapbox.navigation.core.trip.session.RouteProgressObserver
@@ -89,6 +88,7 @@ import java.util.Locale
  * InstructionView, FeedbackButton, and SoundButton with
  * the Navigation SDK.
  */
+@SuppressLint("MissingPermission")
 class InstructionViewActivity :
     AppCompatActivity(),
     OnMapReadyCallback,
@@ -284,11 +284,13 @@ class InstructionViewActivity :
     override fun onFinalDestinationArrival(routeProgress: RouteProgress) {
         val fragmentTransaction = supportFragmentManager.beginTransaction()
         fragmentTransaction.add(R.id.instruction_view_layout_container, newInstance(
-            this@InstructionViewActivity, null),
+            this@InstructionViewActivity),
             FeedbackArrivalFragment::class.java.simpleName).commit()
     }
 
-    override fun onDetailedFeedbackFlowFinished() {
+    override fun onDetailedFeedbackFlowFinished(
+        cachedFeedbackEventList: List<CachedNavigationFeedbackEvent>
+    ) {
         // Empty because not needed in this example
     }
 

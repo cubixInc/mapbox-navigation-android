@@ -34,7 +34,6 @@ class FeedbackArrivalFragment : DialogFragment() {
 
     private lateinit var bottomSheetBehavior: BottomSheetBehavior<View>
     private var feedbackFlowListener: FeedbackFlowListener? = null
-    private val feedbackList = ArrayList<FeedbackItem>()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.mapbox_feedback_arrival_fragment, container, false)
@@ -90,7 +89,6 @@ class FeedbackArrivalFragment : DialogFragment() {
             PLACEHOLDER_INT_FOR_GENERAL_FEEDBACK_DRAWABLE,
             FeedbackEvent.ARRIVAL_FEEDBACK,
             feedbackCommentEditText.text.toString())
-        feedbackList?.add(arrivalExperienceFeedbackItem)
         feedbackFlowListener?.onArrivalExperienceFeedbackFinished(arrivalExperienceFeedbackItem)
     }
 
@@ -114,13 +112,10 @@ class FeedbackArrivalFragment : DialogFragment() {
     companion object {
         private const val PLACEHOLDER_INT_FOR_GENERAL_FEEDBACK_DRAWABLE = 0
 
-        fun newInstance(feedbackFlowListener: FeedbackFlowListener?, feedbackItemList: List<FeedbackItem>?): FeedbackArrivalFragment =
+        fun newInstance(feedbackFlowListener: FeedbackFlowListener?): FeedbackArrivalFragment =
             FeedbackArrivalFragment().apply {
                 feedbackFlowListener?.let {
                     this.feedbackFlowListener = feedbackFlowListener
-                }
-                feedbackItemList?.let {
-                    feedbackList.addAll(feedbackItemList)
                 }
             }
     }

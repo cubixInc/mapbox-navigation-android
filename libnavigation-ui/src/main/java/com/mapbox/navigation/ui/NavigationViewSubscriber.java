@@ -72,5 +72,6 @@ class NavigationViewSubscriber implements LifecycleObserver {
     navigationViewModel.retrieveShouldRecordScreenshot().removeObservers(lifecycleOwner);
     navigationViewModel.retrieveIsFeedbackSentSuccess().removeObservers(lifecycleOwner);
     navigationViewModel.retrieveLatestIncomingFeedbackItem().removeObservers(lifecycleOwner);
+    navigationViewModel.retrieveOnFinalDestinationArrival().removeObservers(lifecycleOwner);
   }
 }

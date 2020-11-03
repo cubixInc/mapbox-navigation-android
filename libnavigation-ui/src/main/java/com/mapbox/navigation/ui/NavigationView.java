@@ -9,7 +9,6 @@ import android.content.res.Resources;
 import android.location.Location;
 import android.os.Bundle;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
 import androidx.annotation.NonNull;
@@ -36,10 +35,10 @@ import com.mapbox.mapboxsdk.maps.UiSettings;
 import com.mapbox.mapboxsdk.plugins.annotation.SymbolOptions;
 import com.mapbox.navigation.base.TimeFormat;
 import com.mapbox.navigation.base.formatter.DistanceFormatter;
-import com.mapbox.navigation.base.options.NavigationOptions;
 import com.mapbox.navigation.base.route.Router;
 import com.mapbox.navigation.core.MapboxNavigation;
 import com.mapbox.navigation.core.replay.MapboxReplayer;
+import com.mapbox.navigation.core.telemetry.events.CachedNavigationFeedbackEvent;
 import com.mapbox.navigation.ui.camera.DynamicCamera;
 import com.mapbox.navigation.ui.camera.NavigationCamera;
 import com.mapbox.navigation.ui.feedback.FeedbackArrivalFragment;
@@ -56,6 +55,7 @@ import com.mapbox.navigation.ui.map.WayNameView;
 import com.mapbox.navigation.ui.puck.DefaultMapboxPuckDrawableSupplier;
 import com.mapbox.navigation.ui.summary.SummaryBottomSheet;
 
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -95,6 +95,7 @@ public class NavigationView extends CoordinatorLayout implements LifecycleOwner,
   private RecenterButton recenterBtn;
   private WayNameView wayNameView;
   private ImageButton routeOverviewBtn;
+  private Symbol feedbackSymbol;
 
   private NavigationPresenter navigationPresenter;
   private NavigationViewEventDispatcher navigationViewEventDispatcher;
@@ -716,45 +717,32 @@ public class NavigationView extends CoordinatorLayout implements LifecycleOwner,
   }
 
   private void initializeNavigationViewModel() {
-    try {
-      Context context = getContext();
-      // unwrap the context if needed, see https://github.com/mapbox/mapbox-navigation-android/issues/2777
-      while (!(context instanceof FragmentActivity) && context instanceof ContextWrapper) {
-        context = ((ContextWrapper) context).getBaseContext();
-      }
-      navigationViewModel = ViewModelProviders.of((FragmentActivity) context).get(NavigationViewModel.class);
-    } catch (ClassCastException exception) {
-      throw new ClassCastException("Please ensure that the provided Context is a valid FragmentActivity");
-    }
+    navigationViewModel = ViewModelProviders.of(getFragmentActivity()).get(NavigationViewModel.class);
   }
 
   @Override
   public void onFinalDestinationArrival() {
-    try {
-      Context context = getContext();
-      // unwrap the context if needed, see https://github.com/mapbox/mapbox-navigation-android/issues/2777
-      while (!(context instanceof FragmentActivity) && context instanceof ContextWrapper) {
-        context = ((ContextWrapper) context).getBaseContext();
+    MapboxNavigation navigation = navigationViewModel.retrieveNavigation();
+    if (navigation != null) {
+      List<CachedNavigationFeedbackEvent> cachedNavigationFeedbackEventList = navigation.getCachedUserFeedback();
+      if (enableDetailedFeedbackFlowAfterTbt && !cachedNavigationFeedbackEventList.isEmpty()) {
+        FragmentTransaction fragmentTransaction = getFragmentActivity().getSupportFragmentManager().beginTransaction();
+        fragmentTransaction.add(R.id.navigationLayout,
+                FeedbackDetailsFragment.Companion.newInstance(
+                        cachedNavigationFeedbackEventList,
+                        feedbackFlowListener,
+                        enableArrivalExperienceFeedback
+                ),
+                FeedbackDetailsFragment.class.getSimpleName()).commit();
+        return;
       }
-      if (retrieveMapboxNavigation() != null) {
-        FragmentActivity fragmentActivityContext = (FragmentActivity) context;
-        FragmentTransaction fragmentTransaction = fragmentActivityContext.getSupportFragmentManager().beginTransaction();
 
-        if (navigationViewModel.getCachedFeedbackItems() == null || navigationViewModel.getCachedFeedbackItems().isEmpty()) {
-          if (enableArrivalExperienceFeedback) {
-            fragmentTransaction.add(R.id.navigationLayout, FeedbackArrivalFragment.Companion.newInstance(
-                    feedbackFlowListener, navigationViewModel.getCachedFeedbackItems()),
-                    FeedbackArrivalFragment.class.getSimpleName()).commit();
-          }
-        } else {
-          fragmentTransaction.add(R.id.navigationLayout,
-                  FeedbackDetailsFragment.Companion.newInstance(enableArrivalExperienceFeedback,
-                          feedbackFlowListener, navigationViewModel.getCachedFeedbackItems()),
-                  FeedbackDetailsFragment.class.getSimpleName()).commit();
-        }
+      if (enableArrivalExperienceFeedback) {
+        FragmentTransaction fragmentTransaction = getFragmentActivity().getSupportFragmentManager().beginTransaction();
+        fragmentTransaction.add(R.id.navigationLayout, FeedbackArrivalFragment.Companion.newInstance(
+                feedbackFlowListener, navigationViewModel.getCachedFeedbackItems()),
+                FeedbackArrivalFragment.class.getSimpleName()).commit();
       }
-    } catch (ClassCastException exception) {
-      throw new ClassCastException("Please ensure that the provided Context is a valid FragmentActivity");
     }
   }
 
@@ -957,7 +945,7 @@ public class NavigationView extends CoordinatorLayout implements LifecycleOwner,
           SymbolOptions symbolOptions = new SymbolOptions();
           symbolOptions.withGeometry(Point.fromLngLat(location.getLongitude(), location.getLatitude()))
           .withIconImage(MAPBOX_NAVIGATION_FEEDBACK_MARKER_NAME);
-          navigationMap.addCustomMarker(symbolOptions);
+          feedbackSymbol = navigationMap.addCustomMarker(symbolOptions);
         }
       }
 
@@ -1025,5 +1013,19 @@ public class NavigationView extends CoordinatorLayout implements LifecycleOwner,
     mapView.onDestroy();
     navigationViewModel.onDestroy(isChangingConfigurations());
     navigationMap = null;
+  }
+
+  private FragmentActivity getFragmentActivity() {
+    Context context = getContext();
+    // unwrap the context if needed, see https://github.com/mapbox/mapbox-navigation-android/issues/2777
+    while (!(context instanceof FragmentActivity) && context instanceof ContextWrapper) {
+      context = ((ContextWrapper) context).getBaseContext();
+    }
+
+    if (context instanceof FragmentActivity) {
+      return (FragmentActivity) context;
+    } else {
+      throw new ClassCastException("Please ensure that the provided Context is a valid FragmentActivity");
+    }
   }
 }

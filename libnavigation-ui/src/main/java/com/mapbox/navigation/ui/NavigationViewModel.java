@@ -21,9 +21,11 @@ import com.mapbox.mapboxsdk.Mapbox;
 import com.mapbox.navigation.base.formatter.DistanceFormatter;
 import com.mapbox.navigation.base.internal.extensions.ContextEx;
 import com.mapbox.navigation.base.options.NavigationOptions;
+import com.mapbox.navigation.base.trip.model.RouteLegProgress;
 import com.mapbox.navigation.base.trip.model.RouteProgress;
 import com.mapbox.navigation.base.trip.model.RouteProgressState;
 import com.mapbox.navigation.core.MapboxNavigation;
+import com.mapbox.navigation.core.arrival.ArrivalObserver;
 import com.mapbox.navigation.core.directions.session.RoutesObserver;
 import com.mapbox.navigation.core.internal.formatter.MapboxDistanceFormatter;
 import com.mapbox.navigation.core.replay.MapboxReplayer;
@@ -31,6 +33,7 @@ import com.mapbox.navigation.core.replay.ReplayLocationEngine;
 import com.mapbox.navigation.core.replay.history.ReplayEventBase;
 import com.mapbox.navigation.core.replay.route.ReplayProgressObserver;
 import com.mapbox.navigation.core.replay.route.ReplayRouteMapper;
+import com.mapbox.navigation.core.telemetry.events.AppMetadata;
 import com.mapbox.navigation.core.trip.session.BannerInstructionsObserver;
 import com.mapbox.navigation.core.trip.session.OffRouteObserver;
 import com.mapbox.navigation.core.trip.session.TripSessionState;
@@ -46,6 +49,8 @@ import com.mapbox.navigation.ui.voice.SpeechPlayer;
 import com.mapbox.navigation.ui.voice.SpeechPlayerProvider;
 import com.mapbox.navigation.ui.voice.VoiceInstructionLoader;
 import okhttp3.Cache;
+import timber.log.Timber;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.TestOnly;
 
@@ -247,15 +252,12 @@ public class NavigationViewModel extends AndroidViewModel {
       navigation.unregisterBannerInstructionsObserver(bannerInstructionsObserver);
       navigation.unregisterVoiceInstructionsObserver(voiceInstructionsObserver);
       navigation.unregisterTripSessionStateObserver(tripSessionStateObserver);
+      navigation.unregisterArrivalObserver(arrivalObserver);
       navigation.stopTripSession();
     }
   }
 
   void updateRouteProgress(RouteProgress routeProgress) {
-    // TODO: Refactor this part and use ArrivalObserver
-    if (routeProgress.getCurrentState() == RouteProgressState.ROUTE_COMPLETE) {
-      this.onFinalDestinationArrival.setValue(true);
-    }
     this.routeProgress.setValue(routeProgress);
   }
 
@@ -437,6 +439,7 @@ public class NavigationViewModel extends AndroidViewModel {
     navigation.registerBannerInstructionsObserver(bannerInstructionsObserver);
     navigation.registerVoiceInstructionsObserver(voiceInstructionsObserver);
     navigation.registerTripSessionStateObserver(tripSessionStateObserver);
+    navigation.registerArrivalObserver(arrivalObserver);
     if (navigationViewOptions.shouldSimulateRoute()) {
       navigation.registerRouteProgressObserver(new ReplayProgressObserver(mapboxReplayer));
     }
@@ -465,7 +468,16 @@ public class NavigationViewModel extends AndroidViewModel {
   private synchronized void cacheFeedback() {
     if (feedbackItem != null && !TextUtils.isEmpty(feedbackEncodedScreenShot)) {
       feedbackItem.setEncodedScreenshot(feedbackEncodedScreenShot);
-      feedbackItemCache.addNewFeedbackItem(feedbackItem);
+      if (navigation != null) {
+        navigation.cacheUserFeedback(
+                feedbackItem.getFeedbackType(),
+                feedbackItem.getDescription(),
+                UI,
+                feedbackItem.getEncodedScreenshot(),
+                feedbackItem.getFeedbackSubType().toArray(new String[0]),
+                null
+        );
+      }
       clearFeedback();
     }
   }
@@ -539,6 +551,19 @@ public class NavigationViewModel extends AndroidViewModel {
       if (routeOptions != null) {
         destination.setValue(routeOptions.coordinates().get(routes.get(0).routeOptions().coordinates().size() - 1));
       }
+    }
+  };
+
+  private ArrivalObserver arrivalObserver = new ArrivalObserver() {
+    @Override
+    public void onNextRouteLegStart(@NotNull RouteLegProgress routeLegProgress) {
+      // no action
+    }
+
+    @Override
+    public void onFinalDestinationArrival(@NotNull RouteProgress routeProgress) {
+      Timber.e("DaiJun final destination arrival");
+      onFinalDestinationArrival.setValue(true);
     }
   };
 

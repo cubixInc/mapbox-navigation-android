@@ -50,10 +50,6 @@ class FeedbackDetailsFragment : DialogFragment() {
                     currentFeedbackIndex,
                     itemsToProvideMoreDetailsOn.size
                 )
-                /**
-                 * TODO: Show something else if it.feedbackType == positioning_issue and/or
-                 *  feedbackSubTypeMap"it.feedbackType" = null ?
-                 */
                 feedbackSubTypeAdapter.submitList(feedbackSubTypeMap[it.feedbackType])
                 feedbackCommentEditText.setText(it.description)
                 feedbackOptionalCommentLayout.visibility = if (it.description?.isEmpty() == true) GONE else VISIBLE
@@ -121,7 +117,7 @@ class FeedbackDetailsFragment : DialogFragment() {
     @SuppressLint("ClickableViewAccessibility")
     private fun initListeners() {
         cancelBtn.setOnClickListener {
-            dismiss()
+            finishDetailsFlow()
         }
         feedbackDetailsFlowStartButton.setOnClickListener {
             currentFeedbackIndex = 0
@@ -135,13 +131,7 @@ class FeedbackDetailsFragment : DialogFragment() {
         feedbackDetailsFlowNextButton.setOnClickListener {
             saveComment()
             if (currentFeedbackIndex == itemsToProvideMoreDetailsOn.size - 1) {
-                feedbackFlowListener?.onDetailedFeedbackFlowFinished(
-                    itemsToProvideMoreDetailsOn.plus(itemsThatDontNeedDetailedFeedback)
-                )
-                if (arrivalExperienceFeedbackEnabled) {
-                    goToArrivalExperienceFragment()
-                }
-                dismiss()
+                finishDetailsFlow()
             } else {
                 currentFeedbackIndex++
             }
@@ -158,9 +148,19 @@ class FeedbackDetailsFragment : DialogFragment() {
         }
     }
 
+    private fun finishDetailsFlow() {
+        feedbackFlowListener?.onDetailedFeedbackFlowFinished(
+            itemsToProvideMoreDetailsOn.plus(itemsThatDontNeedDetailedFeedback)
+        )
+        if (arrivalExperienceFeedbackEnabled) {
+            goToArrivalExperienceFragment()
+        }
+        dismiss()
+    }
+
     private fun goToArrivalExperienceFragment() {
         parentFragmentManager.beginTransaction()
-            .add(R.id.navigationLayout, FeedbackArrivalFragment.newInstance(
+            .add(R.id.feedbackFrameLayout, FeedbackArrivalFragment.newInstance(
                 feedbackFlowListener), FeedbackArrivalFragment::class.java.simpleName).commit()
     }
 

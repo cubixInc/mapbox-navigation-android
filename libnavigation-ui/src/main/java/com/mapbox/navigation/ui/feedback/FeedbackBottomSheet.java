@@ -95,7 +95,7 @@ public class FeedbackBottomSheet extends BottomSheetDialogFragment implements An
   }
 
   @NonNull
-  public static FeedbackBottomSheet newInstance(FeedbackBottomSheetListener feedbackBottomSheetListener,
+  private static FeedbackBottomSheet newInstance(FeedbackBottomSheetListener feedbackBottomSheetListener,
                                                 @FeedbackFlowType int flowType, long duration) {
     FeedbackBottomSheet feedbackBottomSheet = new FeedbackBottomSheet();
     feedbackBottomSheet.feedbackFlowType = flowType;
@@ -135,18 +135,8 @@ public class FeedbackBottomSheet extends BottomSheetDialogFragment implements An
       FrameLayout bottomSheet = bottomSheetDialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
       if (bottomSheet != null) {
         BottomSheetBehavior<FrameLayout> behavior = BottomSheetBehavior.from(bottomSheet);
-        behavior.setFitToContents(false);
-        behavior.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
+        behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
         behavior.setSkipCollapsed(true);
-        behavior.addBottomSheetCallback(new BottomSheetBehavior.BottomSheetCallback() {
-          @Override public void onStateChanged(@NonNull View bottomSheet, int newState) {
-            Timber.e("DaiJun newState=%s", newState);
-          }
-
-          @Override public void onSlide(@NonNull View bottomSheet, float slideOffset) {
-            Timber.e("DaiJun slideOffset=%s", slideOffset);
-          }
-        });
       }
     });
     return dialog;
@@ -188,9 +178,17 @@ public class FeedbackBottomSheet extends BottomSheetDialogFragment implements An
   @Override
   public void onAnimationEnd(Animator animation) {
     if (FeedbackBottomSheet.this.isResumed()) {
-      FeedbackBottomSheet.this.dismiss();
+      FeedbackBottomSheet.this.dismissWithoutSelection();
     } else {
       dismissCommand = delayedDismissCommand;
+    }
+  }
+
+  @Override
+  public void onCancel(@NonNull DialogInterface dialog) {
+    super.onCancel(dialog);
+    if (feedbackBottomSheetListener != null) {
+      feedbackBottomSheetListener.onFeedbackSelected(null);
     }
   }
 
@@ -246,7 +244,7 @@ public class FeedbackBottomSheet extends BottomSheetDialogFragment implements An
   }
 
   private void initButtons() {
-    cancelBtn.setOnClickListener(view -> dismiss());
+    cancelBtn.setOnClickListener(view -> dismissWithoutSelection());
 
     reportIssueBtn.setOnClickListener(view -> {
       if (feedbackBottomSheetListener != null) {
@@ -313,6 +311,13 @@ public class FeedbackBottomSheet extends BottomSheetDialogFragment implements An
       }
     };
     timer.start();
+  }
+
+  private void dismissWithoutSelection() {
+    if (feedbackBottomSheetListener != null) {
+      feedbackBottomSheetListener.onFeedbackSelected(null);
+    }
+    dismiss();
   }
 
   @NonNull
@@ -586,9 +591,18 @@ public class FeedbackBottomSheet extends BottomSheetDialogFragment implements An
    */
   public static final int FEEDBACK_DETAIL_FLOW = 1;
 
+  @IntDef( {FEEDBACK_FLOW_IDLE, FEEDBACK_FLOW_SENT, FEEDBACK_FLOW_CANCEL})
+  @Retention(RetentionPolicy.SOURCE)
+  public @interface FeedbackFlowStatus {
+  }
+
+  public static final int FEEDBACK_FLOW_IDLE = -1;
+  public static final int FEEDBACK_FLOW_SENT = 0;
+  public static final int FEEDBACK_FLOW_CANCEL = 2;
+
   private interface DismissCommand {
     void invoke();
   }
 
-  private DismissCommand delayedDismissCommand = FeedbackBottomSheet.this::dismiss;
+  private DismissCommand delayedDismissCommand = FeedbackBottomSheet.this::dismissWithoutSelection;
 }

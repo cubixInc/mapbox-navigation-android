@@ -99,7 +99,6 @@ class FeedbackOptionsActivity :
                 optionsBuilder.navigationListener(this)
                 optionsBuilder.directionsRoute(route)
                 optionsBuilder.shouldSimulateRoute(true)
-                optionsBuilder.muteVoiceGuidance(true)
 
                 /**
                  * Use [NavigationFeedbackOptions] set options for the feedback
@@ -108,7 +107,7 @@ class FeedbackOptionsActivity :
                 optionsBuilder.navigationFeedbackOptions(
                     NavigationFeedbackOptions.Builder()
                         .enableDetailedFeedbackAfterNavigation(true)
-                        .enableArrivalExperienceFeedback(false)
+                        .enableArrivalExperienceFeedback(true)
                         .build()
                 )
                 navigationView.startNavigation(optionsBuilder.build())
@@ -139,7 +138,7 @@ class FeedbackOptionsActivity :
 
     private fun getDirectionsRoute(): DirectionsRoute {
         val directionsRouteAsJson = resources
-            .openRawResource(R.raw.sample_route_1)
+            .openRawResource(R.raw.sample_route_short)
             .bufferedReader()
             .use { it.readText() }
         return DirectionsRoute.fromJson(directionsRouteAsJson)

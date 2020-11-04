@@ -5,6 +5,9 @@ import androidx.lifecycle.LifecycleObserver;
 import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.OnLifecycleEvent;
 
+import static com.mapbox.navigation.ui.feedback.FeedbackBottomSheet.FEEDBACK_FLOW_CANCEL;
+import static com.mapbox.navigation.ui.feedback.FeedbackBottomSheet.FEEDBACK_FLOW_SENT;
+
 class NavigationViewSubscriber implements LifecycleObserver {
 
   private final LifecycleOwner lifecycleOwner;
@@ -45,8 +48,10 @@ class NavigationViewSubscriber implements LifecycleObserver {
     });
 
     navigationViewModel.retrieveIsFeedbackSentSuccess().observe(lifecycleOwner, isFeedbackSentSuccess -> {
-      if (isFeedbackSentSuccess != null && isFeedbackSentSuccess) {
-        navigationPresenter.onFeedbackSent();
+      if (isFeedbackSentSuccess != null
+              && (isFeedbackSentSuccess == FEEDBACK_FLOW_SENT
+              || isFeedbackSentSuccess == FEEDBACK_FLOW_CANCEL)) {
+        navigationPresenter.onFeedbackFlowStatusChanged(isFeedbackSentSuccess);
       }
     });
 
@@ -54,12 +59,6 @@ class NavigationViewSubscriber implements LifecycleObserver {
       if (shouldShowFeedbackDetailsFragment != null && shouldShowFeedbackDetailsFragment) {
         navigationPresenter.onFinalDestinationArrival();
         navigationViewModel.retrieveOnFinalDestinationArrival().removeObservers(lifecycleOwner);
-      }
-    });
-
-    navigationViewModel.retrieveLatestIncomingFeedbackItem().observe(lifecycleOwner, latestIncomingFeedbackItem -> {
-      if (latestIncomingFeedbackItem != null) {
-        navigationPresenter.onFeedbackSubmitted(latestIncomingFeedbackItem);
       }
     });
   }
@@ -71,7 +70,6 @@ class NavigationViewSubscriber implements LifecycleObserver {
     navigationViewModel.retrieveNavigationLocation().removeObservers(lifecycleOwner);
     navigationViewModel.retrieveShouldRecordScreenshot().removeObservers(lifecycleOwner);
     navigationViewModel.retrieveIsFeedbackSentSuccess().removeObservers(lifecycleOwner);
-    navigationViewModel.retrieveLatestIncomingFeedbackItem().removeObservers(lifecycleOwner);
     navigationViewModel.retrieveOnFinalDestinationArrival().removeObservers(lifecycleOwner);
   }
 }

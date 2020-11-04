@@ -32,6 +32,7 @@ import com.mapbox.mapboxsdk.maps.MapView;
 import com.mapbox.mapboxsdk.maps.MapboxMap;
 import com.mapbox.mapboxsdk.maps.OnMapReadyCallback;
 import com.mapbox.mapboxsdk.maps.UiSettings;
+import com.mapbox.mapboxsdk.plugins.annotation.Symbol;
 import com.mapbox.mapboxsdk.plugins.annotation.SymbolOptions;
 import com.mapbox.navigation.base.TimeFormat;
 import com.mapbox.navigation.base.formatter.DistanceFormatter;
@@ -42,6 +43,7 @@ import com.mapbox.navigation.core.telemetry.events.CachedNavigationFeedbackEvent
 import com.mapbox.navigation.ui.camera.DynamicCamera;
 import com.mapbox.navigation.ui.camera.NavigationCamera;
 import com.mapbox.navigation.ui.feedback.FeedbackArrivalFragment;
+import com.mapbox.navigation.ui.feedback.FeedbackBottomSheet;
 import com.mapbox.navigation.ui.feedback.FeedbackDetailsFragment;
 import com.mapbox.navigation.ui.feedback.FeedbackFlowListener;
 import com.mapbox.navigation.ui.feedback.FeedbackItem;
@@ -434,17 +436,23 @@ public class NavigationView extends CoordinatorLayout implements LifecycleOwner,
   }
 
   @Override
-  public void onFeedbackSent() {
-    Snackbar snackbar = Snackbar.make(this, R.string.mapbox_feedback_reported, Snackbar.LENGTH_SHORT);
-    if (!isSummaryBottomSheetHidden()) {
-      snackbar.setAnchorView(summaryBottomSheet);
+  public void onFeedbackFlowStatusChanged(@FeedbackBottomSheet.FeedbackFlowStatus int status) {
+    if (status == FeedbackBottomSheet.FEEDBACK_FLOW_SENT) {
+      Snackbar snackbar = Snackbar.make(this, R.string.mapbox_feedback_reported, Snackbar.LENGTH_SHORT);
+      if (!isSummaryBottomSheetHidden()) {
+        snackbar.setAnchorView(summaryBottomSheet);
+      }
+
+      snackbar.getView().setBackgroundColor(
+              ContextCompat.getColor(getContext(), R.color.mapbox_feedback_bottom_sheet_tertiary));
+      snackbar.setTextColor(ContextCompat.getColor(getContext(), R.color.mapbox_feedback_bottom_sheet_primary_text));
+
+      snackbar.show();
+    } else if (status == FeedbackBottomSheet.FEEDBACK_FLOW_CANCEL) {
+      if (feedbackSymbol != null && navigationMap != null) {
+        navigationMap.clearMarkerWithId(feedbackSymbol.getId());
+      }
     }
-
-    snackbar.getView().setBackgroundColor(
-        ContextCompat.getColor(getContext(), R.color.mapbox_feedback_bottom_sheet_tertiary));
-    snackbar.setTextColor(ContextCompat.getColor(getContext(), R.color.mapbox_feedback_bottom_sheet_primary_text));
-
-    snackbar.show();
   }
 
   @Override
@@ -722,12 +730,17 @@ public class NavigationView extends CoordinatorLayout implements LifecycleOwner,
 
   @Override
   public void onFinalDestinationArrival() {
+    if (navigationMap != null) {
+      navigationMap.clearMarkersWithIconImageProperty(MAPBOX_NAVIGATION_FEEDBACK_MARKER_NAME);
+    }
+
     MapboxNavigation navigation = navigationViewModel.retrieveNavigation();
     if (navigation != null) {
       List<CachedNavigationFeedbackEvent> cachedNavigationFeedbackEventList = navigation.getCachedUserFeedback();
       if (enableDetailedFeedbackFlowAfterTbt && !cachedNavigationFeedbackEventList.isEmpty()) {
         FragmentTransaction fragmentTransaction = getFragmentActivity().getSupportFragmentManager().beginTransaction();
-        fragmentTransaction.add(R.id.navigationLayout,
+        fragmentTransaction.add(
+                R.id.feedbackFrameLayout,
                 FeedbackDetailsFragment.Companion.newInstance(
                         cachedNavigationFeedbackEventList,
                         feedbackFlowListener,
@@ -739,23 +752,11 @@ public class NavigationView extends CoordinatorLayout implements LifecycleOwner,
 
       if (enableArrivalExperienceFeedback) {
         FragmentTransaction fragmentTransaction = getFragmentActivity().getSupportFragmentManager().beginTransaction();
-        fragmentTransaction.add(R.id.navigationLayout, FeedbackArrivalFragment.Companion.newInstance(
-                feedbackFlowListener, navigationViewModel.getCachedFeedbackItems()),
+        fragmentTransaction.add(
+                R.id.feedbackFrameLayout,
+                FeedbackArrivalFragment.Companion.newInstance(feedbackFlowListener),
                 FeedbackArrivalFragment.class.getSimpleName()).commit();
       }
-    }
-  }
-
-  @Override
-  public void onFeedbackSubmitted(FeedbackItem submittedFeedbackItem) {
-    /*
-     * enableDetailedFeedbackFlowAfterTbt determines whether the NavigationView is in
-     * "1tap" or "2tap" flow
-     */
-    if (enableDetailedFeedbackFlowAfterTbt) {
-      navigationViewModel.cacheFeedback(submittedFeedbackItem);
-    } else {
-      navigationViewModel.sendFeedback(submittedFeedbackItem);
     }
   }
 

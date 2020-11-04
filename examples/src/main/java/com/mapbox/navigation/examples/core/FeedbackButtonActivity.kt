@@ -261,7 +261,6 @@ class FeedbackButtonActivity :
                 mapboxMap?.snapshot(this::encodeSnapshot)
                 FeedbackBottomSheet.newInstance(
                     this,
-                    FeedbackBottomSheet.FEEDBACK_DETAIL_FLOW,
                     NavigationConstants.FEEDBACK_BOTTOM_SHEET_DURATION
                 ).show(it, FeedbackBottomSheet.TAG)
             }

@@ -5,7 +5,7 @@ import com.mapbox.navigation.ui.feedback.FeedbackFlowListener
 import com.mapbox.navigation.ui.feedback.FeedbackItem
 
 /**
- * Internal callback for NavigationView to handle Guidance view visibility changing event.
+ * Internal callback for NavigationView to handle Feedback flow changing event.
  */
 internal class NavigationFeedbackFlowListener(
     private val navigationViewModel: NavigationViewModel
@@ -14,22 +14,13 @@ internal class NavigationFeedbackFlowListener(
     override fun onDetailedFeedbackFlowFinished(
         cachedFeedbackEventList: List<CachedNavigationFeedbackEvent>
     ) {
+        navigationViewModel.onDetailedFeedbackFlowFinished()
         navigationViewModel.retrieveNavigation()?.run {
             postCachedUserFeedback(cachedFeedbackEventList)
         }
-//        navigationViewModel.cachedFeedbackItems?.let { itemList ->
-//            if (itemList.isNotEmpty()) {
-//                navigationViewModel.sendCachedFeedback()
-//            }
-//        }
     }
 
     override fun onArrivalExperienceFeedbackFinished(arrivalFeedbackItem: FeedbackItem) {
-        navigationViewModel.cachedFeedbackItems?.let { itemList ->
-            if (itemList.isNotEmpty()) {
-                navigationViewModel.sendCachedFeedback()
-            }
-            navigationViewModel.sendFeedback(arrivalFeedbackItem)
-        }
+        navigationViewModel.updateFeedback(arrivalFeedbackItem)
     }
 }

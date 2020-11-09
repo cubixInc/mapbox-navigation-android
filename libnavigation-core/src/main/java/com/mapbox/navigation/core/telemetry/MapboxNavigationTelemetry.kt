@@ -489,7 +489,7 @@ internal object MapboxNavigationTelemetry :
         log("populateNavigationFreeDriveEvent")
 
         this.apply {
-            eventType = type
+            eventType = type.type
             location = locationsCollector.lastLocation?.toTelemetryLocation()
             eventVersion = EVENT_VERSION
             locationEngine = locationEngineNameExternal

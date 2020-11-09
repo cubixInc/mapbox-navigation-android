@@ -12,6 +12,7 @@ import org.apache.commons.io.IOUtils
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Ignore
 import org.junit.Test
 import java.io.BufferedReader
 import java.io.ByteArrayInputStream
@@ -102,6 +103,23 @@ class SchemaTest {
     fun checkNavigationRerouteEventFields() {
         val schema = grabEventSchema(NavigationMetrics.REROUTE)
         val fields = grabSchemaPropertyFields(NavigationRerouteEvent::class.java)
+        schemaContainsPropertyFields(schema.properties, fields)
+    }
+
+    @Test
+    @Ignore
+    @Throws(Exception::class)
+    fun checkNavigationFreeDriveEventSize() {
+        val schema = grabEventSchema(NavigationMetrics.FREE_DRIVE)
+        val fields = grabSchemaPropertyFields(NavigationFreeDriveEvent::class.java)
+        assertEquals(schema.properties.size().toLong(), fields.size.toLong())
+    }
+
+    @Test
+    @Ignore
+    fun checkNavigationFreeDriveEventFields() {
+        val schema = grabEventSchema(NavigationMetrics.FREE_DRIVE)
+        val fields = grabSchemaPropertyFields(NavigationFreeDriveEvent::class.java)
         schemaContainsPropertyFields(schema.properties, fields)
     }
 

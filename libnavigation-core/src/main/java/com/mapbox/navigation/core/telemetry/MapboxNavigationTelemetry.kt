@@ -29,12 +29,16 @@ import com.mapbox.navigation.core.directions.session.RoutesObserver
 import com.mapbox.navigation.core.internal.accounts.MapboxNavigationAccounts
 import com.mapbox.navigation.core.telemetry.events.AppMetadata
 import com.mapbox.navigation.core.telemetry.events.FeedbackEvent
+import com.mapbox.navigation.core.telemetry.events.FreeDriveEventType
+import com.mapbox.navigation.core.telemetry.events.FreeDriveEventType.START
+import com.mapbox.navigation.core.telemetry.events.FreeDriveEventType.STOP
 import com.mapbox.navigation.core.telemetry.events.MetricsRouteProgress
 import com.mapbox.navigation.core.telemetry.events.NavigationArriveEvent
 import com.mapbox.navigation.core.telemetry.events.NavigationCancelEvent
 import com.mapbox.navigation.core.telemetry.events.NavigationDepartEvent
 import com.mapbox.navigation.core.telemetry.events.NavigationEvent
 import com.mapbox.navigation.core.telemetry.events.NavigationFeedbackEvent
+import com.mapbox.navigation.core.telemetry.events.NavigationFreeDriveEvent
 import com.mapbox.navigation.core.telemetry.events.NavigationRerouteEvent
 import com.mapbox.navigation.core.telemetry.events.PhoneState
 import com.mapbox.navigation.core.telemetry.events.TelemetryLocation
@@ -63,6 +67,16 @@ private data class DynamicSessionValues(
         sessionStartTime = null
         sessionArrivalTime = null
         sessionStarted = false
+    }
+}
+
+private data class DynamicFreeDriveValues(
+    var sessionId: String? = null,
+    var sessionStartTime: Date? = null
+) {
+    fun reset() {
+        sessionId = null
+        sessionStartTime = null
     }
 }
 
@@ -107,6 +121,7 @@ internal object MapboxNavigationTelemetry :
             }
         }
     private val dynamicValues = DynamicSessionValues()
+    private val dynamicFreeDriveValues = DynamicFreeDriveValues()
     private var locationEngineNameExternal: String = LocationEngine::javaClass.name
     private lateinit var locationsCollector: LocationsCollector
     private lateinit var sdkIdentifier: String
@@ -129,6 +144,7 @@ internal object MapboxNavigationTelemetry :
         locationsCollector: LocationsCollector = LocationsCollectorImpl(logger)
     ) {
         reset()
+        dynamicFreeDriveValues.reset()
         sessionState = IDLE
         this.logger = logger
         this.locationsCollector = locationsCollector
@@ -230,15 +246,49 @@ internal object MapboxNavigationTelemetry :
 
     override fun onNavigationSessionStateChanged(navigationSession: NavigationSession.State) {
         log("session state is $navigationSession")
-        sessionState = navigationSession
         when (navigationSession) {
-            IDLE, FREE_DRIVE -> sessionStop()
+            IDLE, FREE_DRIVE -> {
+                sessionStop()
+                handleStateChanged(sessionState, navigationSession)
+            }
             ACTIVE_GUIDANCE -> {
                 locationsCollector.flushBuffers()
+                handleStateChanged(sessionState, navigationSession)
                 needStartSession = true
                 startSessionIfNeedAndCan()
             }
         }
+        sessionState = navigationSession
+    }
+
+    private fun handleStateChanged(
+        oldState: NavigationSession.State,
+        newState: NavigationSession.State
+    ) {
+        when {
+            oldState == FREE_DRIVE && newState == IDLE -> trackFreeDrive(STOP)
+            oldState == FREE_DRIVE && newState == ACTIVE_GUIDANCE -> trackFreeDrive(STOP)
+            oldState != FREE_DRIVE && newState == FREE_DRIVE -> trackFreeDrive(START)
+        }
+    }
+
+    private fun trackFreeDrive(type: FreeDriveEventType) {
+        if (type == START) {
+            dynamicFreeDriveValues.run {
+                sessionId = obtainUniversalUniqueIdentifier()
+                sessionStartTime = Date()
+            }
+        }
+
+        val freeDriveEvent = NavigationFreeDriveEvent(PhoneState(context)).apply {
+            populate(type)
+        }
+
+        if (type == STOP) {
+            dynamicFreeDriveValues.reset()
+        }
+
+        metricsReporter.addEvent(freeDriveEvent)
     }
 
     override fun onOffRouteStateChanged(offRoute: Boolean) {
@@ -435,6 +485,24 @@ internal object MapboxNavigationTelemetry :
         }
     }
 
+    private fun NavigationFreeDriveEvent.populate(type: FreeDriveEventType) {
+        log("populateNavigationFreeDriveEvent")
+
+        this.apply {
+            eventType = type
+            location = locationsCollector.lastLocation?.toTelemetryLocation()
+            eventVersion = EVENT_VERSION
+            locationEngine = locationEngineNameExternal
+            percentTimeInPortrait = lifecycleMonitor?.obtainPortraitPercentage() ?: 100
+            percentTimeInForeground = lifecycleMonitor?.obtainForegroundPercentage() ?: 100
+            simulation = locationEngineNameExternal == MOCK_PROVIDER
+            dynamicFreeDriveValues.run {
+                sessionIdentifier = sessionId
+                startTimestamp = generateCreateDateFormatted(sessionStartTime)
+            }
+        }
+    }
+
     private fun reset() {
         dynamicValues.reset()
         resetOriginalRoute()
@@ -466,26 +534,28 @@ internal object MapboxNavigationTelemetry :
 
     private fun List<Location>.toTelemetryLocations(): Array<TelemetryLocation> {
         val feedbackLocations = mutableListOf<TelemetryLocation>()
-        this.forEach {
-            feedbackLocations.add(
-                TelemetryLocation(
-                    it.latitude,
-                    it.longitude,
-                    it.speed,
-                    it.bearing,
-                    it.altitude,
-                    it.time.toString(),
-                    it.accuracy,
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        it.verticalAccuracyMeters
-                    } else {
-                        0f
-                    }
-                )
-            )
+        forEach {
+            feedbackLocations.add(it.toTelemetryLocation())
         }
 
         return feedbackLocations.toTypedArray()
+    }
+
+    private fun Location.toTelemetryLocation(): TelemetryLocation {
+        return TelemetryLocation(
+            latitude,
+            longitude,
+            speed,
+            bearing,
+            altitude,
+            time.toString(),
+            accuracy,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                verticalAccuracyMeters
+            } else {
+                0f
+            }
+        )
     }
 
     private fun log(message: String) {

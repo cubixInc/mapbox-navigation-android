@@ -98,6 +98,8 @@ public class MapboxNavigationActivity extends AppCompatActivity implements OnNav
     extractConfiguration(options);
     options.navigationOptions(MapboxNavigationOptions.builder().build());
     navigationView.startNavigation(options.build());
+
+    navigationView.retrieveFeedbackButton().hide();
   }
 
   @Override
